@@ -10,7 +10,7 @@ export type GameStatus =
     | 'initializing' 
     | 'playing' 
     | 'playerBust' 
-    | 'dealerBust' 
+    | 'dealerBust'
     | 'playerBlackjack' 
     | 'dealerBlackjack' 
     | 'playerWin' 

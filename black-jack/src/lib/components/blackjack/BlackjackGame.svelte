@@ -81,10 +81,9 @@
 
     // Check for blackjack in the initial deal
     function checkForBlackjack() {
-        if (playerScore === 21) {
-            gameStatus = 'playerBlackjack';
-        } else if (dealerScore === 21) {
-            gameStatus = 'dealerBlackjack';
+        const result = checkForBlackjack(playerHand, dealerHand);
+        if (result) {
+            gameStatus = result;
         }
     }
 

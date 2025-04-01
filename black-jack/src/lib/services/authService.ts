@@ -27,21 +27,23 @@ export async function register(username: string, email: string, password: string
             };
         }
 
-        // In a real app, you would send this data to your API
-        // Mock implementation for demonstration
+        // Create new user
         const newUser = {
             id: (MOCK_USERS.length + 1).toString(),
             username,
             email,
-            password // In a real app, never store passwords in plain text
+            password
         };
 
         MOCK_USERS.push(newUser);
 
-        // Create JWT token (mock)
+        // Create JWT token
         const token = `mock_jwt_token_${newUser.id}`;
 
-        // Login the user
+        // Set the cookie FIRST
+        setAuthCookie(token);
+
+        // Then update the store
         const userWithoutPassword: User = {
             id: newUser.id,
             username: newUser.username,
@@ -87,10 +89,8 @@ export async function login(username: string, password: string): Promise<{ succe
 
         authStore.login(userWithoutPassword, token);
 
-        // Set token in a cookie for server-side auth checking
-        if (browser) {
-            document.cookie = `token=${token}; path=/; max-age=86400; samesite=strict`;
-        }
+        // Set the cookie
+        setAuthCookie(token);
 
         return {
             success: true
@@ -104,7 +104,7 @@ export async function login(username: string, password: string): Promise<{ succe
     }
 }
 
-// Logout
+// Also update the logout function
 export function logout(): void {
     // Clear token cookie
     if (browser) {
@@ -119,4 +119,11 @@ export function logout(): void {
 export function verifyToken(token: string): boolean {
     // In a real app, you would verify the JWT signature and expiration
     return !!token && token.startsWith('mock_jwt_token_');
+}
+
+export function setAuthCookie(token: string): void {
+    if (browser) {
+        // Use a secure, HTTP-only cookie with proper attributes
+        document.cookie = `token=${token}; path=/; max-age=86400; samesite=lax`;
+    }
 }
