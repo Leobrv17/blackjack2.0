@@ -1,3 +1,4 @@
+
 <script lang="ts">
     import { onMount } from 'svelte';
     import { getNewDeck, drawCards, calculateScore } from '$lib/services/blackjackService';
