@@ -1,7 +1,6 @@
 <script lang="ts">
     import { register } from '$lib/services/authService';
     import { goto } from '$app/navigation';
-    import { browser } from '$app/environment';
 
     let username = '';
     let email = '';
@@ -21,15 +20,18 @@
             return;
         }
 
-        const result = await register(username, email, password);
-
-        if (result.success) {
-            // Delay the navigation slightly to ensure cookie is processed
-            setTimeout(() => {
-                window.location.href = '/game'; // Use direct location change instead of goto
-            }, 100);
-        } else {
-            errorMessage = result.message || 'Registration failed';
+        try {
+            const result = await register(username, email, password);
+            
+            if (result.success) {
+                goto('/game');
+            } else {
+                errorMessage = result.message || 'Registration failed';
+            }
+        } catch (error) {
+            console.error('Registration error:', error);
+            errorMessage = 'An unexpected error occurred';
+        } finally {
             loading = false;
         }
     }
@@ -50,6 +52,7 @@
             bind:value={username}
             required
             disabled={loading}
+            autocomplete="username"
         />
     </div>
 
@@ -61,6 +64,7 @@
             bind:value={email}
             required
             disabled={loading}
+            autocomplete="email"
         />
     </div>
 
@@ -72,6 +76,7 @@
             bind:value={password}
             required
             disabled={loading}
+            autocomplete="new-password"
         />
     </div>
 
@@ -83,6 +88,7 @@
             bind:value={confirmPassword}
             required
             disabled={loading}
+            autocomplete="new-password"
         />
     </div>
 

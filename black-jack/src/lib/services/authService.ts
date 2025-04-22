@@ -1,177 +1,126 @@
-// import { authStore, type User } from '$lib/stores/authStore';
-// import { goto } from '$app/navigation';
-// import { browser } from '$app/environment';
+import { authStore, type User } from '$lib/stores/authStore';
+import { goto } from '$app/navigation';
+import { browser } from '$app/environment';
 
-// // For a real implementation, these would be API calls to your backend
-// // This is a simplified mock version for demonstration
+// Type de réponse pour les fonctions d'authentification
+type AuthResponse = {
+    success: boolean;
+    message?: string;
+};
 
-// // Mock user database
-// const MOCK_USERS = [
-//     {
-//         id: '1',
-//         username: 'user1',
-//         email: 'user1@example.com',
-//         password: 'password123'
-//     }
-// ];
+// Fonction de login
+export async function login(email: string, password: string): Promise<AuthResponse> {
+    try {
+        const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email, password })
+        });
 
-// // Register a new user
-// export async function register(username: string, email: string, password: string): Promise<{ success: boolean, message?: string }> {
-//     try {
-//         // Check if user already exists
-//         const existingUser = MOCK_USERS.find(u => u.email === email || u.username === username);
-//         if (existingUser) {
-//             return {
-//                 success: false,
-//                 message: 'Username or email already exists'
-//             };
-//         }
+        const data = await response.json();
 
-//         // Create new user
-//         const newUser = {
-//             id: (MOCK_USERS.length + 1).toString(),
-//             username,
-//             email,
-//             password
-//         };
+        if (!response.ok) {
+            return {
+                success: false,
+                message: data.error || 'Identifiants invalides'
+            };
+        }
 
-//         MOCK_USERS.push(newUser);
+        // Mettre à jour le store d'authentification
+        const user: User = {
+            id: String(data.userId),
+            username: email.split('@')[0], // On utilise la partie locale de l'email comme nom d'utilisateur
+            email: email
+        };
 
-//         // Create JWT token
-//         const token = createJwtToken(newUser.id);
+        authStore.login(user, data.token);
 
-//         // Set the cookie FIRST
-//         setAuthCookie(token);
-
-//         // Then update the store
-//         const userWithoutPassword: User = {
-//             id: newUser.id,
-//             username: newUser.username,
-//             email: newUser.email
-//         };
-
-//         authStore.login(userWithoutPassword, token);
-
-//         return {
-//             success: true
-//         };
-//     } catch (error) {
-//         console.error('Registration error:', error);
-//         return {
-//             success: false,
-//             message: 'Registration failed'
-//         };
-//     }
-// }
-
-// // Login an existing user
-// export async function login(username: string, password: string): Promise<{ success: boolean, message?: string }> {
-//     try {
-//         // Find user
-//         const user = MOCK_USERS.find(u => u.username === username && u.password === password);
-
-//         if (!user) {
-//             return {
-//                 success: false,
-//                 message: 'Invalid username or password'
-//             };
-//         }
-
-//         // Create JWT token (mock)
-//         const token = createJwtToken(user.id);
-
-//         // Store user in store
-//         const userWithoutPassword: User = {
-//             id: user.id,
-//             username: user.username,
-//             email: user.email
-//         };
-
-//         authStore.login(userWithoutPassword, token);
-
-//         // Set the cookie
-//         setAuthCookie(token);
-
-//         return {
-//             success: true
-//         };
-//     } catch (error) {
-//         console.error('Login error:', error);
-//         return {
-//             success: false,
-//             message: 'Login failed'
-//         };
-//     }
-// }
-
-// // Also update the logout function
-// export function logout(): void {
-//     // Clear token cookie
-//     if (browser) {
-//         document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-//     }
-
-//     authStore.logout();
-//     goto('/login');
-// }
-
-// // Verify token (would normally be done on the server)
-// export function verifyToken(token: string): boolean {
-//     // In a real app, you would verify the JWT signature and expiration
-//     return !!token && token.startsWith('mock_jwt_token_');
-// }
-
-// export function setAuthCookie(token: string): void {
-//     if (browser) {
-//         // Use a secure, HTTP-only cookie with proper attributes
-//         document.cookie = `token=${token}; path=/; max-age=86400; samesite=lax`;
-//     }
-// }
-
-// function createJwtToken(userId: string): string {
-//     return `mock_jwt_token_${userId}`;
-// }
-
-export async function login(email: string, password: string) {
-	const res = await fetch('/api/auth/login', {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ email, password })
-	});
-
-	if (!res.ok) {
-		const error = await res.json();
-		throw new Error(error.error || 'Login failed');
-	}
-
-	const { token } = await res.json();
-	localStorage.setItem('token', token); // Tu peux aussi utiliser un store Svelte
-	return token;
+        return {
+            success: true
+        };
+    } catch (error) {
+        console.error('Erreur de connexion:', error);
+        return {
+            success: false,
+            message: 'Erreur de connexion au serveur'
+        };
+    }
 }
 
-export async function register(email: string, password: string) {
-	const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-    });    
+// Fonction d'inscription
+export async function register(username: string, email: string, password: string): Promise<AuthResponse> {
+    try {
+        const response = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email, password })
+        });
 
-	if (!res.ok) {
-		const error = await res.json();
-		throw new Error(error.error || 'Registration failed');
-	}
+        const data = await response.json();
 
-	return await res.json();
+        if (!response.ok) {
+            return {
+                success: false,
+                message: data.error || 'Inscription échouée'
+            };
+        }
+
+        // Mettre à jour le store d'authentification
+        const user: User = {
+            id: String(data.userId),
+            username: username || email.split('@')[0],
+            email: email
+        };
+
+        authStore.login(user, data.token);
+
+        return {
+            success: true
+        };
+    } catch (error) {
+        console.error('Erreur d\'inscription:', error);
+        return {
+            success: false,
+            message: 'Erreur de connexion au serveur'
+        };
+    }
 }
 
-export function logout() {
-	localStorage.removeItem('token');
+// Fonction de déconnexion
+export function logout(): void {
+    // Supprimer le cookie côté serveur
+    fetch('/api/auth/logout', { method: 'POST' });
+    
+    // Mettre à jour le store d'authentification
+    authStore.logout();
+    
+    // Rediriger vers la page d'accueil
+    goto('/');
 }
 
-export function getToken(): string | null {
-	return localStorage.getItem('token');
+// Vérifier l'état d'authentification au chargement de l'application
+export function checkAuthStatus(): void {
+    if (browser) {
+        const storedUser = localStorage.getItem('user');
+        const storedToken = localStorage.getItem('token');
+        
+        if (storedUser && storedToken) {
+            const user = JSON.parse(storedUser);
+            authStore.login(user, storedToken);
+        }
+    }
 }
 
-export function isLoggedIn(): boolean {
-	return !!getToken();
+// Vérifier si l'utilisateur est connecté
+export function isAuthenticated(): boolean {
+    let isAuth = false;
+    const unsubscribe = authStore.subscribe(state => {
+        isAuth = state.isAuthenticated;
+    });
+    unsubscribe();
+    return isAuth;
 }
