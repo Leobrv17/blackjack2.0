@@ -5,15 +5,25 @@
     export let dealerHand: Card[] = [];
     export let dealerScore: number;
     export let gameStatus: GameStatus;
+
+    // Vérifier si la partie est terminée
+    $: isGameOver = gameStatus !== 'playing' && gameStatus !== 'initializing';
 </script>
 
 <div class="dealer-area">
-    <h2>Croupier: {dealerScore}</h2>
+    <h2>
+        Croupier: 
+        {#if isGameOver}
+            {dealerScore}
+        {:else}
+            ?
+        {/if}
+    </h2>
     <div class="card-container">
         {#each dealerHand as card, i}
             <CardDisplay 
-                image={i === 0 || gameStatus !== 'playing' ? card.image : 'https://deckofcardsapi.com/static/img/back.png'} 
-                code={i === 0 || gameStatus !== 'playing' ? card.code : 'Card back'} 
+                image={i === 0 || isGameOver ? card.image : 'https://deckofcardsapi.com/static/img/back.png'} 
+                code={i === 0 || isGameOver ? card.code : 'Card back'} 
                 index={i} 
             />
         {/each}
