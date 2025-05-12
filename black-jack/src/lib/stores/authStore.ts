@@ -54,6 +54,14 @@ const createAuthStore = () => {
                 }
                 return { ...state, user };
             });
+        },
+        updateToken: (token: string) => {
+            update(state => {
+                if (browser) {
+                    localStorage.setItem('token', token);
+                }
+                return { ...state, token };
+            });
         }
     };
 };
