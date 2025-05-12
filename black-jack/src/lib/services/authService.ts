@@ -2,121 +2,202 @@ import { authStore, type User } from '$lib/stores/authStore';
 import { goto } from '$app/navigation';
 import { browser } from '$app/environment';
 
-// For a real implementation, these would be API calls to your backend
-// This is a simplified mock version for demonstration
+// Type de réponse pour les fonctions d'authentification
+type AuthResponse = {
+    success: boolean;
+    message?: string;
+};
 
-// Mock user database
-const MOCK_USERS = [
-    {
-        id: '1',
-        username: 'user1',
-        email: 'user1@example.com',
-        password: 'password123'
-    }
-];
-
-// Register a new user
-export async function register(username: string, email: string, password: string): Promise<{ success: boolean, message?: string }> {
+// Fonction de login
+export async function login(email: string, password: string): Promise<AuthResponse> {
     try {
-        // Check if user already exists
-        const existingUser = MOCK_USERS.find(u => u.email === email || u.username === username);
-        if (existingUser) {
+        const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email, password })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
             return {
                 success: false,
-                message: 'Username or email already exists'
+                message: data.error || 'Identifiants invalides'
             };
         }
 
-        // In a real app, you would send this data to your API
-        // Mock implementation for demonstration
-        const newUser = {
-            id: (MOCK_USERS.length + 1).toString(),
-            username,
-            email,
-            password // In a real app, never store passwords in plain text
+        // Mettre à jour le store d'authentification
+        const user: User = {
+            id: String(data.userId),
+            username: email.split('@')[0], // On utilise la partie locale de l'email comme nom d'utilisateur
+            email: email
         };
 
-        MOCK_USERS.push(newUser);
+        authStore.login(user, data.token);
 
-        // Create JWT token (mock)
-        const token = `mock_jwt_token_${newUser.id}`;
-
-        // Login the user
-        const userWithoutPassword: User = {
-            id: newUser.id,
-            username: newUser.username,
-            email: newUser.email
-        };
-
-        authStore.login(userWithoutPassword, token);
+        // Configurer le rafraîchissement automatique du token
+        setupTokenRefresh();
 
         return {
             success: true
         };
     } catch (error) {
-        console.error('Registration error:', error);
+        console.error('Erreur de connexion:', error);
         return {
             success: false,
-            message: 'Registration failed'
+            message: 'Erreur de connexion au serveur'
         };
     }
 }
 
-// Login an existing user
-export async function login(username: string, password: string): Promise<{ success: boolean, message?: string }> {
+// Fonction d'inscription
+export async function register(username: string, email: string, password: string): Promise<AuthResponse> {
     try {
-        // Find user
-        const user = MOCK_USERS.find(u => u.username === username && u.password === password);
+        const response = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email, password })
+        });
 
-        if (!user) {
+        const data = await response.json();
+
+        if (!response.ok) {
             return {
                 success: false,
-                message: 'Invalid username or password'
+                message: data.error || 'Inscription échouée'
             };
         }
 
-        // Create JWT token (mock)
-        const token = `mock_jwt_token_${user.id}`;
-
-        // Store user in store
-        const userWithoutPassword: User = {
-            id: user.id,
-            username: user.username,
-            email: user.email
+        // Mettre à jour le store d'authentification
+        const user: User = {
+            id: String(data.userId),
+            username: username || email.split('@')[0],
+            email: email
         };
 
-        authStore.login(userWithoutPassword, token);
+        authStore.login(user, data.token);
 
-        // Set token in a cookie for server-side auth checking
-        if (browser) {
-            document.cookie = `token=${token}; path=/; max-age=86400; samesite=strict`;
-        }
+        // Configurer le rafraîchissement automatique du token
+        setupTokenRefresh();
 
         return {
             success: true
         };
     } catch (error) {
-        console.error('Login error:', error);
+        console.error('Erreur d\'inscription:', error);
         return {
             success: false,
-            message: 'Login failed'
+            message: 'Erreur de connexion au serveur'
         };
     }
 }
 
-// Logout
+// Fonction de déconnexion
 export function logout(): void {
-    // Clear token cookie
-    if (browser) {
-        document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-    }
-
+    // Supprimer le cookie côté serveur
+    fetch('/api/auth/logout', { method: 'POST' });
+    
+    // Annuler le rafraîchissement automatique du token
+    clearTokenRefresh();
+    
+    // Mettre à jour le store d'authentification
     authStore.logout();
-    goto('/login');
+    
+    // Rediriger vers la page d'accueil
+    goto('/');
 }
 
-// Verify token (would normally be done on the server)
-export function verifyToken(token: string): boolean {
-    // In a real app, you would verify the JWT signature and expiration
-    return !!token && token.startsWith('mock_jwt_token_');
+// Rafraîchir le token
+export async function refreshToken(): Promise<boolean> {
+    try {
+        const response = await fetch('/api/auth/refresh', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            // Si le rafraîchissement échoue, déconnecter l'utilisateur
+            authStore.logout();
+            return false;
+        }
+
+        // Mettre à jour le token dans le store
+        authStore.updateToken(data.token);
+        return true;
+    } catch (error) {
+        console.error('Erreur lors du rafraîchissement du token:', error);
+        return false;
+    }
+}
+
+// Variable pour stocker l'intervalle de rafraîchissement
+let refreshInterval: number | null = null;
+
+// Configurer le rafraîchissement automatique du token
+function setupTokenRefresh(): void {
+    if (browser) {
+        // Nettoyer tout intervalle existant
+        clearTokenRefresh();
+        
+        // Rafraîchir le token toutes les 20 minutes (20 * 60 * 1000 ms)
+        // Cela permettra de garder la session active tant que l'utilisateur utilise l'application
+        refreshInterval = window.setInterval(refreshToken, 20 * 60 * 1000);
+        
+        // Également rafraîchir le token lors de la reprise d'activité
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+    }
+}
+
+// Nettoyer le rafraîchissement automatique du token
+function clearTokenRefresh(): void {
+    if (browser && refreshInterval !== null) {
+        window.clearInterval(refreshInterval);
+        refreshInterval = null;
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }
+}
+
+// Gérer le changement de visibilité de la page
+function handleVisibilityChange(): void {
+    if (document.visibilityState === 'visible') {
+        // Si l'utilisateur revient sur la page, rafraîchir immédiatement le token
+        refreshToken();
+    }
+}
+
+// Vérifier l'état d'authentification au chargement de l'application
+export function checkAuthStatus(): void {
+    if (browser) {
+        const storedUser = localStorage.getItem('user');
+        const storedToken = localStorage.getItem('token');
+        
+        if (storedUser && storedToken) {
+            const user = JSON.parse(storedUser);
+            authStore.login(user, storedToken);
+            
+            // Configurer le rafraîchissement automatique du token
+            setupTokenRefresh();
+            
+            // Rafraîchir immédiatement le token pour s'assurer qu'il est valide
+            refreshToken();
+        }
+    }
+}
+
+// Vérifier si l'utilisateur est connecté
+export function isAuthenticated(): boolean {
+    let isAuth = false;
+    const unsubscribe = authStore.subscribe(state => {
+        isAuth = state.isAuthenticated;
+    });
+    unsubscribe();
+    return isAuth;
 }

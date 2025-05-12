@@ -40,7 +40,7 @@
             gameStatus = 'playing';
 
             // Check for blackjack
-            checkForBlackjack();
+            checkForBlackjack(playerScore);
         } catch (error) {
             console.error('Error initializing game:', error);
         } finally {
@@ -80,11 +80,9 @@
     }
 
     // Check for blackjack in the initial deal
-    function checkForBlackjack() {
+    function checkForBlackjack(playerScore : number) {
         if (playerScore === 21) {
             gameStatus = 'playerBlackjack';
-        } else if (dealerScore === 21) {
-            gameStatus = 'dealerBlackjack';
         }
     }
 

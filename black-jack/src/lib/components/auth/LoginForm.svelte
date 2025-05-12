@@ -3,7 +3,7 @@
     import { goto } from '$app/navigation';
     import { page } from '$app/stores';
 
-    let username = '';
+    let email = '';
     let password = '';
     let errorMessage = '';
     let loading = false;
@@ -15,15 +15,20 @@
         loading = true;
         errorMessage = '';
         
-        const result = await login(username, password);
-        
-        if (result.success) {
-            goto(redirectTo);
-        } else {
-            errorMessage = result.message || 'Login failed';
+        try {
+            const result = await login(email, password);
+            
+            if (result.success) {
+                goto(redirectTo);
+            } else {
+                errorMessage = result.message || 'Login failed';
+            }
+        } catch (error) {
+            console.error('Login error:', error);
+            errorMessage = 'An unexpected error occurred';
+        } finally {
+            loading = false;
         }
-        
-        loading = false;
     }
 </script>
 
@@ -35,13 +40,14 @@
     {/if}
     
     <div class="form-group">
-        <label for="username">Username</label>
+        <label for="email">Email</label>
         <input 
-            type="text" 
-            id="username" 
-            bind:value={username} 
+            type="email" 
+            id="email" 
+            bind:value={email} 
             required 
             disabled={loading}
+            autocomplete="email"
         />
     </div>
     
@@ -53,6 +59,7 @@
             bind:value={password} 
             required 
             disabled={loading}
+            autocomplete="current-password"
         />
     </div>
     

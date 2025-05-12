@@ -12,83 +12,92 @@
     async function handleSubmit() {
         loading = true;
         errorMessage = '';
-        
+
         // Validate passwords match
         if (password !== confirmPassword) {
             errorMessage = 'Passwords do not match';
             loading = false;
             return;
         }
-        
-        const result = await register(username, email, password);
-        
-        if (result.success) {
-            goto('/game');
-        } else {
-            errorMessage = result.message || 'Registration failed';
+
+        try {
+            const result = await register(username, email, password);
+            
+            if (result.success) {
+                goto('/game');
+            } else {
+                errorMessage = result.message || 'Registration failed';
+            }
+        } catch (error) {
+            console.error('Registration error:', error);
+            errorMessage = 'An unexpected error occurred';
+        } finally {
+            loading = false;
         }
-        
-        loading = false;
     }
 </script>
 
 <form on:submit|preventDefault={handleSubmit} class="register-form">
     <h2>Create Account</h2>
-    
+
     {#if errorMessage}
         <div class="error-message">{errorMessage}</div>
     {/if}
-    
+
     <div class="form-group">
         <label for="username">Username</label>
-        <input 
-            type="text" 
-            id="username" 
-            bind:value={username} 
-            required 
+        <input
+            type="text"
+            id="username"
+            bind:value={username}
+            required
             disabled={loading}
+            autocomplete="username"
         />
     </div>
-    
+
     <div class="form-group">
         <label for="email">Email</label>
-        <input 
-            type="email" 
-            id="email" 
-            bind:value={email} 
-            required 
+        <input
+            type="email"
+            id="email"
+            bind:value={email}
+            required
             disabled={loading}
+            autocomplete="email"
         />
     </div>
-    
+
     <div class="form-group">
         <label for="password">Password</label>
-        <input 
-            type="password" 
-            id="password" 
-            bind:value={password} 
-            required 
+        <input
+            type="password"
+            id="password"
+            bind:value={password}
+            required
             disabled={loading}
+            autocomplete="new-password"
         />
     </div>
-    
+
     <div class="form-group">
         <label for="confirmPassword">Confirm Password</label>
-        <input 
-            type="password" 
-            id="confirmPassword" 
-            bind:value={confirmPassword} 
-            required 
+        <input
+            type="password"
+            id="confirmPassword"
+            bind:value={confirmPassword}
+            required
             disabled={loading}
+            autocomplete="new-password"
         />
     </div>
-    
+
     <div class="form-actions">
         <button type="submit" disabled={loading}>
             {loading ? 'Creating account...' : 'Register'}
         </button>
     </div>
-    
+
     <div class="form-footer">
         <p>Already have an account? <a href="/login">Log In</a></p>
     </div>
@@ -103,23 +112,23 @@
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         background-color: white;
     }
-    
+
     h2 {
         text-align: center;
         margin-bottom: 1.5rem;
         color: #1c5c2e;
     }
-    
+
     .form-group {
         margin-bottom: 1rem;
     }
-    
+
     label {
         display: block;
         margin-bottom: 0.5rem;
         font-weight: 500;
     }
-    
+
     input {
         width: 100%;
         padding: 0.75rem;
@@ -127,11 +136,11 @@
         border-radius: 4px;
         font-size: 1rem;
     }
-    
+
     .form-actions {
         margin-top: 1.5rem;
     }
-    
+
     button {
         width: 100%;
         padding: 0.75rem;
@@ -143,16 +152,16 @@
         cursor: pointer;
         transition: background-color 0.3s;
     }
-    
+
     button:hover:not(:disabled) {
         background-color: #2a7d43;
     }
-    
+
     button:disabled {
         background-color: #cccccc;
         cursor: not-allowed;
     }
-    
+
     .error-message {
         background-color: #ffebee;
         color: #c62828;
@@ -160,17 +169,17 @@
         border-radius: 4px;
         margin-bottom: 1rem;
     }
-    
+
     .form-footer {
         margin-top: 1.5rem;
         text-align: center;
     }
-    
+
     a {
         color: #1c5c2e;
         text-decoration: none;
     }
-    
+
     a:hover {
         text-decoration: underline;
     }
